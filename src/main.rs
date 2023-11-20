@@ -12,8 +12,8 @@ fn main() {
     event_loop
         .run(move |event, elwt| match event {
             Event::WindowEvent {
-                window_id,
                 event: WindowEvent::RedrawRequested,
+                window_id,
             } if window_id == window.id() => {
                 let (width, height) = {
                     let size = window.inner_size();
@@ -40,8 +40,8 @@ fn main() {
                 buffer.present().unwrap();
             }
             Event::WindowEvent {
-                window_id,
                 event: WindowEvent::CloseRequested,
+                window_id,
             } if window_id == window.id() => {
                 elwt.exit();
             }
