@@ -3,6 +3,13 @@ name = "verle"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release-lto]
+inherits = "release"
+lto = "thin"
+
 [dependencies]
+glam = "0.24"
+ndarray = "0.15"
 softbuffer = "0.4"
+thiserror = "1"
 winit = "0.29"
