@@ -35,19 +35,22 @@ fn main() {
                     return;
                 };
                 surface.resize(width, height).unwrap();
+                let (width, height) = (u32::from(width), u32::from(height));
 
-                let mut canvas = Canvas::new(GRAY, Size::new(width.into(), height.into()));
+                let mut canvas = Canvas::new(GRAY, Size::new(width, height));
 
-                let origin = Pos::new(200, 200);
-                let radius = 200u32;
-
-                canvas.draw_circle(origin, radius, RED, GREEN);
-                canvas.draw_circle(Pos::new(100, 100), 100, RED, GREEN);
-                canvas.draw_circle(Pos::new(275, 100), 100, RED, GREEN);
-                canvas.draw_circle(Pos::new(100, 325), 100, RED, GREEN);
-                canvas.draw_circle(Pos::new(325, 275), 100, RED, GREEN);
-                canvas.draw_circle(Pos::new(150, 150), 1, RED, GREEN);
-                canvas.draw_circle(Pos::new(150, 100), 0, RED, GREEN);
+                canvas.draw_circle(Pos::new(0, 0), 1, RED, GREEN);
+                canvas.draw_circle(Pos::new(width - 1, 0), 1, RED, GREEN);
+                canvas.draw_circle(Pos::new(0, height - 1), 1, RED, GREEN);
+                canvas.draw_circle(Pos::new(width - 1, height - 1), 1, RED, GREEN);
+                canvas.draw_line(Pos::new(0, 0), Pos::new(width, height), RED);
+                canvas.draw_line(Pos::new(width + 10, height), Pos::new(10, 0), RED);
+                canvas.draw_line(Pos::new(width, 0), Pos::new(0, height), RED);
+                canvas.draw_line(Pos::new(10, height), Pos::new(width + 10, 0), RED);
+                canvas.draw_line(Pos::new(100, 100), Pos::new(100, 200), GREEN);
+                canvas.draw_line(Pos::new(100, 100), Pos::new(200, 100), GREEN);
+                canvas.draw_line(Pos::new(200, 200), Pos::new(100, 200), GREEN);
+                canvas.draw_line(Pos::new(200, 200), Pos::new(200, 100), GREEN);
 
                 let mut buffer = surface.buffer_mut().unwrap();
                 window.pre_present_notify();
