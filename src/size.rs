@@ -1,4 +1,5 @@
 use glam::UVec2;
+use std::fmt::{Display, Formatter};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Default)]
 pub struct Size {
@@ -27,6 +28,12 @@ impl From<UVec2> for Size {
     }
 }
 
+impl Display for Size {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Size: width = {}, height = {}", self.width, self.height)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,12 +50,12 @@ mod tests {
     }
 
     #[test]
-    fn uvec2_from_size() {
+    fn ivec2_from_size() {
         assert_eq!(UVec2::new(1, 2), Size::new(1, 2).into());
     }
 
     #[test]
-    fn size_from_uvec2() {
+    fn size_from_ivec2() {
         assert_eq!(Size::new(1, 2), UVec2::new(1, 2).into());
     }
 }
