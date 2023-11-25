@@ -8,6 +8,7 @@ inherits = "release"
 lto = "thin"
 
 [dependencies]
+anyhow = "1"
 glam = "0.24"
 ndarray = "0.15"
 softbuffer = "0.4"

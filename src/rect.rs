@@ -1,6 +1,6 @@
 use crate::Pos;
 use crate::Size;
-use glam::UVec2;
+use glam::{IVec2, UVec2};
 use std::fmt::{Display, Formatter};
 use std::ops::BitAnd;
 use thiserror::Error;
@@ -15,7 +15,7 @@ impl Rect {
     #[inline]
     pub fn try_new(top_left: Pos, bottom_right: Pos) -> Result<Self, Error> {
         if top_left.x > bottom_right.x {
-            Err(Error::Invalid(
+            Err(Error::InvalidDimensionValue(
                 Dimension::X,
                 InvalidActual {
                     lower: top_left.x,
@@ -23,7 +23,7 @@ impl Rect {
                 },
             ))
         } else if top_left.y > bottom_right.y {
-            Err(Error::Invalid(
+            Err(Error::InvalidDimensionValue(
                 Dimension::Y,
                 InvalidActual {
                     lower: top_left.y,
@@ -39,11 +39,13 @@ impl Rect {
     }
 
     #[inline]
-    pub fn new(top_left: Pos, size: Size) -> Self {
-        Self {
+    pub fn try_new_size(top_left: Pos, size: Size) -> Result<Self, Error> {
+        Ok(Self {
             top_left,
-            bottom_right: (UVec2::from(top_left) + UVec2::from(size)).into(),
-        }
+            bottom_right: (IVec2::from(top_left)
+                + IVec2::try_from(UVec2::from(size)).map_err(|_| Error::TryFromIntError(size))?)
+            .into(),
+        })
     }
 
     #[inline]
@@ -67,38 +69,38 @@ impl Rect {
     }
 
     #[inline]
-    pub fn left(&self) -> u32 {
+    pub fn left(&self) -> i32 {
         self.top_left.x
     }
 
     #[inline]
-    pub fn right(&self) -> u32 {
+    pub fn right(&self) -> i32 {
         self.bottom_right.x
     }
 
     #[inline]
-    pub fn top(&self) -> u32 {
+    pub fn top(&self) -> i32 {
         self.top_left.y
     }
 
     #[inline]
-    pub fn bottom(&self) -> u32 {
+    pub fn bottom(&self) -> i32 {
         self.bottom_right.y
     }
 
     #[inline]
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> i32 {
         self.right() - self.left()
     }
 
     #[inline]
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> i32 {
         self.bottom() - self.top()
     }
 
     #[inline]
     pub fn size(&self) -> Size {
-        Size::new(self.width(), self.height())
+        Size::new(self.width() as u32, self.height() as u32)
     }
 
     #[inline]
@@ -118,8 +120,8 @@ impl<'a, 'b> BitAnd<&'a Rect> for &'b Rect {
     #[inline]
     fn bitand(self, rhs: &Rect) -> Self::Output {
         Rect::try_new(
-            UVec2::from(self.top_left).max(rhs.top_left.into()).into(),
-            UVec2::from(self.bottom_right)
+            IVec2::from(self.top_left).max(rhs.top_left.into()).into(),
+            IVec2::from(self.bottom_right)
                 .min(rhs.bottom_right.into())
                 .into(),
         )
@@ -135,8 +137,8 @@ pub enum Dimension {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct InvalidActual {
-    pub lower: u32,
-    pub higher: u32,
+    pub lower: i32,
+    pub higher: i32,
 }
 
 impl Display for Dimension {
@@ -155,7 +157,9 @@ impl Display for Dimension {
 #[derive(Error, Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Error {
     #[error("Invalid dimension {0}: lower: {} is expected not higher than upper: {}", .1.lower, .1.higher)]
-    Invalid(Dimension, InvalidActual),
+    InvalidDimensionValue(Dimension, InvalidActual),
+    #[error("Can not cast u32 value to i32: {0}")]
+    TryFromIntError(Size),
 }
 
 #[cfg(test)]
@@ -178,7 +182,7 @@ mod tests {
         let err = Rect::try_new(Pos::new(3, 2), Pos::new(1, 4)).unwrap_err();
         assert_eq!(
             err,
-            Error::Invalid(
+            Error::InvalidDimensionValue(
                 Dimension::X,
                 InvalidActual {
                     lower: 3,
@@ -197,7 +201,7 @@ mod tests {
         let err = Rect::try_new(Pos::new(1, 4), Pos::new(3, 2)).unwrap_err();
         assert_eq!(
             err,
-            Error::Invalid(
+            Error::InvalidDimensionValue(
                 Dimension::Y,
                 InvalidActual {
                     lower: 4,
@@ -214,11 +218,25 @@ mod tests {
     #[test]
     fn new() {
         assert_eq!(
-            Rect::new(Pos::new(1, 2), Size::new(3, 4)),
-            Rect {
+            Rect::try_new_size(Pos::new(1, 2), Size::new(3, 4)),
+            Ok(Rect {
                 top_left: Pos::new(1, 2),
                 bottom_right: Pos::new(4, 6)
-            }
+            })
+        )
+    }
+
+    #[test]
+    fn new_err() {
+        assert_eq!(
+            Rect::try_new_size(
+                Pos::new(1, 2),
+                Size::new(u32::MAX / 2 + 1, u32::MAX / 2 + 1)
+            ),
+            Err(Error::TryFromIntError(Size::new(
+                u32::MAX / 2 + 1,
+                u32::MAX / 2 + 1
+            )))
         )
     }
 
@@ -251,7 +269,7 @@ mod tests {
         let err = Rect::try_new(Pos::new(3, 4), Pos::new(1, 2)).unwrap_err();
         assert_eq!(
             err,
-            Error::Invalid(
+            Error::InvalidDimensionValue(
                 Dimension::X,
                 InvalidActual {
                     lower: 3,
@@ -267,40 +285,40 @@ mod tests {
 
     #[test]
     fn intersection() {
-        let intersection = &Rect::new(Pos::new(2, 2), Size::new(2, 1))
-            & &Rect::new(Pos::new(3, 1), Size::new(3, 3));
+        let intersection = &Rect::try_new_size(Pos::new(2, 2), Size::new(2, 1)).unwrap()
+            & &Rect::try_new_size(Pos::new(3, 1), Size::new(3, 3)).unwrap();
         assert_eq!(
             intersection,
-            Some(Rect::new(Pos::new(3, 2), Size::new(1, 1)))
+            Some(Rect::try_new_size(Pos::new(3, 2), Size::new(1, 1)).unwrap())
         );
         assert!(!intersection.unwrap().is_zero_size());
     }
 
     #[test]
     fn empty_intersection() {
-        let intersection = &Rect::new(Pos::new(1, 1), Size::new(1, 1))
-            & &Rect::new(Pos::new(3, 3), Size::new(1, 1));
+        let intersection = &Rect::try_new_size(Pos::new(1, 1), Size::new(1, 1)).unwrap()
+            & &Rect::try_new_size(Pos::new(3, 3), Size::new(1, 1)).unwrap();
         assert_eq!(intersection, None);
     }
 
     #[test]
     fn zero_size_intersection_in_dot() {
-        let intersection = &Rect::new(Pos::new(1, 1), Size::new(1, 1))
-            & &Rect::new(Pos::new(2, 2), Size::new(1, 1));
+        let intersection = &Rect::try_new_size(Pos::new(1, 1), Size::new(1, 1)).unwrap()
+            & &Rect::try_new_size(Pos::new(2, 2), Size::new(1, 1)).unwrap();
         assert_eq!(
             intersection,
-            Some(Rect::new(Pos::new(2, 2), Size::default()))
+            Some(Rect::try_new_size(Pos::new(2, 2), Size::default()).unwrap())
         );
         assert!(intersection.unwrap().is_zero_size());
     }
 
     #[test]
     fn zero_size_intersection_in_line() {
-        let intersection = &Rect::new(Pos::new(1, 1), Size::new(1, 1))
-            & &Rect::new(Pos::new(1, 2), Size::new(1, 1));
+        let intersection = &Rect::try_new_size(Pos::new(1, 1), Size::new(1, 1)).unwrap()
+            & &Rect::try_new_size(Pos::new(1, 2), Size::new(1, 1)).unwrap();
         assert_eq!(
             intersection,
-            Some(Rect::new(Pos::new(1, 2), Size::new(1, 0)))
+            Some(Rect::try_new_size(Pos::new(1, 2), Size::new(1, 0)).unwrap())
         );
         assert!(intersection.unwrap().is_zero_size());
     }

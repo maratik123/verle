@@ -35,9 +35,11 @@ fn main() {
                     return;
                 };
                 surface.resize(width, height).unwrap();
-                let (width, height) = (u32::from(width), u32::from(height));
+                let size = Size::new(u32::from(width), u32::from(height));
 
-                let mut canvas = Canvas::new(GRAY, Size::new(width, height));
+                let mut canvas = Canvas::new(GRAY, size);
+
+                let (width, height) = (size.width as i32, size.height as i32);
 
                 canvas.draw_circle(Pos::new(0, 0), 1, RED, GREEN);
                 canvas.draw_circle(Pos::new(width - 1, 0), 1, RED, GREEN);

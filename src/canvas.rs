@@ -15,7 +15,8 @@ impl Canvas {
     pub fn new(default_color: u32, size: Size) -> Self {
         Self {
             buffer: Array::from_elem((size.height as usize, size.width as usize), default_color),
-            global_rect: Rect::new(Pos::new(0, 0), size),
+            global_rect: Rect::try_new_size(Pos::new(0, 0), size)
+                .unwrap_or_else(|_| unreachable!(/*valid until top_left is not negative*/)),
         }
     }
 
@@ -101,26 +102,18 @@ impl Canvas {
 
         let radius_i = radius as i32;
         let r2 = radius * radius;
-        let center_x_i = center.x as i32;
-        let center_y_i = center.y as i32;
 
-        let clamp_x = |x: i32| x.clamp(rect.left() as i32, rect.right() as i32 - 1);
-        let x_range = (
-            clamp_x(center_x_i - radius_i),
-            clamp_x(center_x_i + radius_i),
-        );
+        let clamp_x = |x: i32| x.clamp(rect.left(), rect.right() - 1);
+        let x_range = (clamp_x(center.x - radius_i), clamp_x(center.x + radius_i));
 
-        let clamp_y = |y: i32| y.clamp(rect.top() as i32, rect.bottom() as i32 - 1);
-        let y_range = (
-            clamp_y(center_y_i - radius_i),
-            clamp_y(center_y_i + radius_i),
-        );
+        let clamp_y = |y: i32| y.clamp(rect.top(), rect.bottom() - 1);
+        let y_range = (clamp_y(center.y - radius_i), clamp_y(center.y + radius_i));
 
         for x in x_range.0..=x_range.1 {
-            let offset_x = x - center_x_i;
+            let offset_x = x - center.x;
             let offset_x_2 = (offset_x * offset_x) as u32;
             for y in y_range.0..=y_range.1 {
-                let offset_y = y - center_y_i;
+                let offset_y = y - center.y;
                 let dist = offset_x_2 + (offset_y * offset_y) as u32;
                 if dist < r2 + radius {
                     buffer[(y as usize, x as usize)] = if dist <= r2 - radius {
@@ -180,9 +173,9 @@ impl Canvas {
             return;
         }
         let dx = from.x.abs_diff(to.x) as i32;
-        let sx = from.x < to.x;
+        let sx: i32 = if from.x < to.x { 1 } else { -1 };
         let dy = -(from.y.abs_diff(to.y) as i32);
-        let sy = from.y < to.y;
+        let sy: i32 = if from.y < to.y { 1 } else { -1 };
         let mut error = dx + dy;
         let mut pos = from;
 
@@ -197,22 +190,14 @@ impl Canvas {
                     break;
                 }
                 error += dy;
-                if sx {
-                    pos.x += 1;
-                } else {
-                    pos.x -= 1;
-                }
+                pos.x += sx;
             }
             if e2 <= dx {
                 if pos.y == to.y {
                     break;
                 }
                 error += dx;
-                if sy {
-                    pos.y += 1;
-                } else {
-                    pos.y -= 1;
-                }
+                pos.y += sy;
             }
         }
     }
